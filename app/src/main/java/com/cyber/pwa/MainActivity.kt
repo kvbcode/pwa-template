@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.PersistableBundle
 import android.support.design.widget.NavigationView
+import android.support.design.widget.TabLayout
 import android.support.v4.view.GravityCompat
 import android.support.v7.app.ActionBarDrawerToggle
 import android.support.v7.app.AppCompatActivity
@@ -22,6 +23,7 @@ import kotlinx.coroutines.*
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
 
     private lateinit var jsonMenu:JsonMenuAdapter
+    private var tabMenuList:List<JsonMenuAdapter.TabItem> = emptyList()
     private val TAG = "PWA"
 
     private var DEFAULT_URI = ""
@@ -80,7 +82,18 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         createNavigationMenu()
         nav_view.setNavigationItemSelectedListener(this)
 
-        loadUrl(null)
+        createTabs( emptyList() )
+        tabLayout.addOnTabSelectedListener(object: TabLayout.OnTabSelectedListener {
+            override fun onTabReselected(tab: TabLayout.Tab?) { }
+            override fun onTabUnselected(tab: TabLayout.Tab?) { }
+
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                var pos:Int = tab?.position ?: -1
+                if (pos!=-1) loadUrl( tabMenuList[pos].uriStr )
+            }
+        })
+
+        loadUrl("")
     }
 
     override fun onSaveInstanceState(outState: Bundle?, outPersistentState: PersistableBundle?) {
@@ -111,6 +124,20 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         DEFAULT_URI = jsonMenu.defaultUri
     }
 
+    fun createTabs(tabList:List<JsonMenuAdapter.TabItem>){
+        tabMenuList = tabList
+        tabLayout.removeAllTabs()
+
+        for(tab in tabList){
+            tabLayout.addTab( tabLayout.newTab().setText( tab.title ) )
+        }
+
+        when(tabLayout.tabCount>0){
+            true -> tabLayout.visibility = View.VISIBLE
+            else -> tabLayout.visibility = View.GONE
+        }
+    }
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main, menu)
         return true
@@ -128,14 +155,20 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         Log.v(TAG, "onNavigationItemSelected(): ${item.itemId}, uri: ${menuItem?.uriStr}")
 
-        loadUrl( menuItem?.uriStr )
+        createTabs(menuItem?.tabs ?: emptyList())
+        loadUrl( menuItem?.uriStr ?: "" )
 
         drawer_layout.closeDrawer(GravityCompat.START)
         return true
     }
 
-    fun loadUrl(url:String?){
-        lastUriStr = url ?: DEFAULT_URI
+    fun loadUrl(url:String){
+
+        lastUriStr = when(url.isEmpty()){
+            true -> DEFAULT_URI
+            else -> url
+        }
+
         webView.loadUrl( lastUriStr )
     }
 

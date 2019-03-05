@@ -3,8 +3,17 @@
     {"group_title":"Поиск",
       "items": [
         {"item_title":"DuckDuckGo", "uri":"https://duckduckgo.com"},
-        {"item_title":"Google", "uri":"https://google.com"},
-        {"item_title":"Yandex", "uri":"https://m.yandex.ru"}
+        {"item_title":"Google", "uri":"https://google.com", "tabs":[
+          {"tab_title":"Текст", "uri":"https://google.com"},
+          {"tab_title":"Картинки", "uri":"https://images.google.com"},
+          {"tab_title":"Youtube", "uri":"https://youtube.com"}
+        ]},
+        {"item_title":"Yandex", "uri":"https://m.yandex.ru", "tabs":[
+          {"tab_title":"Текст", "uri":"https://m.yandex.ru"},
+          {"tab_title":"Картинки", "uri":"https://yandex.ru/images"},
+          {"tab_title":"Карты", "uri":"https://yandex.ru/maps"},
+          {"tab_title":"Маркет", "uri":"https://market.yandex.ru"}
+        ]}
       ]
     },
     {
@@ -19,7 +28,11 @@
       "items": [
         {"item_title":"pikabu", "uri":"https://m.pikabu.ru"},
         {"item_title":"reactor", "uri":"http://m.joyreactor.cc"},
-        {"item_title":"bash", "uri":"https://bash.im"}
+        {"item_title":"bash", "uri":"https://bash.im", "tabs":[
+          {"tab_title":"bash.im", "uri":"https://bash.im"},
+          {"tab_title":"ithappens.me", "uri":"https://ithappens.me"},
+          {"tab_title":"zadolba.li", "uri":"https://zadolba.li"}
+        ]}
       ]
     }
   ]

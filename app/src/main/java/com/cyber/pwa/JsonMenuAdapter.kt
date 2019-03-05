@@ -1,21 +1,29 @@
 package com.cyber.pwa
 
-import android.net.Uri
+import android.util.Log
 import android.view.Menu
+import org.json.JSONException
 import org.json.JSONObject
 
 class JsonMenuAdapter( jsonData:String ){
 
-    class MenuItem(
-        var id:Int,
-        var title:String = "",
-        var uriStr:String = ""
+    private val TAG = "JsonMenuAdapter"
 
+    class TabItem(
+        val title:String = "",
+        val uriStr:String = ""
+    )
+
+    class MenuItem(
+        val id:Int,
+        val title:String = "",
+        val uriStr:String = "",
+        val tabs:List<TabItem>
     )
 
     class MenuGroup(
-        var title:String = "",
-        var items:List<MenuItem>
+        val title:String = "",
+        val items:List<MenuItem>
     )
 
     var nextId = 0
@@ -58,9 +66,29 @@ class JsonMenuAdapter( jsonData:String ){
     }
 
     private fun parseMenuItem(json:JSONObject):MenuItem{
+        var tabsList = ArrayList<TabItem>()
+
+        try {
+            var tabsObjArr = json.getJSONArray("tabs")
+            for (tabIndex in 0 until tabsObjArr.length()){
+                var tabObj = tabsObjArr.getJSONObject( tabIndex )
+                tabsList.add( parseTabItem( tabObj ) )
+            }
+        }catch (e: JSONException){
+            Log.v(TAG, "no tabs found in menu item: ${e.message}")
+        }
+
         return MenuItem(
             id = nextId++,
             title = json.getString("item_title"),
+            uriStr =  json.getString( "uri" ),
+            tabs = tabsList
+        )
+    }
+
+    private fun parseTabItem(json:JSONObject):TabItem{
+        return TabItem(
+            title = json.getString("tab_title"),
             uriStr =  json.getString( "uri" )
         )
     }
