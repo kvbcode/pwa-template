@@ -1,0 +1,26 @@
+{ "default_uri":"https://google.com",
+  "groups":[
+    {"group_title":"Поиск",
+      "items": [
+        {"item_title":"DuckDuckGo", "uri":"https://duckduckgo.com"},
+        {"item_title":"Google", "uri":"https://google.com"},
+        {"item_title":"Yandex", "uri":"https://m.yandex.ru"}
+      ]
+    },
+    {
+      "group_title": "Социальные",
+      "items": [
+        {"item_title":"facebook", "uri":"https://facebook.com"},
+        {"item_title":"habr", "uri":"https://m.habr.com"},
+        {"item_title":"VK", "uri":"https://m.vk.com"}
+      ]
+    },
+    {"group_title":"group 2",
+      "items": [
+        {"item_title":"pikabu", "uri":"https://m.pikabu.ru"},
+        {"item_title":"reactor", "uri":"http://m.joyreactor.cc"},
+        {"item_title":"bash", "uri":"https://bash.im"}
+      ]
+    }
+  ]
+}
