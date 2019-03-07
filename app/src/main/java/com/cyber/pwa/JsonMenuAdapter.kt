@@ -66,22 +66,29 @@ class JsonMenuAdapter( jsonData:String ){
     }
 
     private fun parseMenuItem(json:JSONObject):MenuItem{
-        var tabsList = ArrayList<TabItem>()
 
-        try {
+        val tabsList = if (json.isNull("tabs")) {
+            emptyList<TabItem>()
+        }else{
             var tabsObjArr = json.getJSONArray("tabs")
-            for (tabIndex in 0 until tabsObjArr.length()){
-                var tabObj = tabsObjArr.getJSONObject( tabIndex )
-                tabsList.add( parseTabItem( tabObj ) )
+            val tempList = ArrayList<TabItem>()
+            for (tabIndex in 0 until tabsObjArr.length()) {
+                var tabObj = tabsObjArr.getJSONObject(tabIndex)
+                tempList.add(parseTabItem(tabObj))
             }
-        }catch (e: JSONException){
-            Log.v(TAG, "no tabs found in menu item: ${e.message}")
+            tempList
+        }
+
+        val uri:String = if (!json.isNull("uri")) {
+            json.getString("uri")
+        }else{
+            if (!tabsList.isEmpty()) tabsList[0].uriStr else ""
         }
 
         return MenuItem(
             id = nextId++,
             title = json.getString("item_title"),
-            uriStr =  json.getString( "uri" ),
+            uriStr = uri,
             tabs = tabsList
         )
     }
