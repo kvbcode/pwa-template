@@ -5,6 +5,7 @@ import android.support.design.widget.NavigationView
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentStatePagerAdapter
 import android.support.v4.view.GravityCompat
+import android.support.v4.view.ViewPager
 import android.support.v7.app.ActionBarDrawerToggle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
@@ -17,28 +18,16 @@ import kotlinx.android.synthetic.main.content_main.*
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener, WebViewFragment.OnPageDownloadListener {
     private val TAG = "PWA"
+    private val PARAM_MENU_ITEM_ID = "menu_item_id"
 
     private lateinit var jsonMenu:JsonMenuAdapter
     private var tabMenuList:List<JsonMenuAdapter.TabItem> = emptyList()
-    private var currentFragment:WebViewFragment? = null
+    private var activeFragment:WebViewFragment? = null
+    private var activeMenuItemId = -1
 
+    private var DEFAULT_TITLE = "HOME"
     private var DEFAULT_URI = ""
-
-    private val pagerAdapter = object: FragmentStatePagerAdapter(supportFragmentManager) {
-        override fun getItem(position: Int): Fragment {
-            val frag = WebViewFragment.newInstance( tabMenuList[position].uriStr )
-            if (position==viewPager.currentItem) currentFragment = frag
-            return frag
-        }
-
-        override fun getPageTitle(position: Int): CharSequence? {
-            return tabMenuList[position].title
-        }
-
-        override fun getCount(): Int {
-            return tabMenuList.size
-        }
-    }
+    private var prefetch = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,20 +42,25 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         createNavigationMenu()
         nav_view.setNavigationItemSelectedListener(this)
 
-        setTabList( emptyList() )
+        viewPager.addOnPageChangeListener(object:ViewPager.SimpleOnPageChangeListener(){
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                if (prefetch) {
+                    val adapter = viewPager?.adapter
+                    val pagesCount = adapter?.count ?: 0
 
-        viewPager.adapter = pagerAdapter
-        viewPager.offscreenPageLimit = 2
-        tabLayout.setupWithViewPager(viewPager)
+                    if (position < pagesCount - 1) {
+                        Log.v(TAG, "prefetch cached fragment for pos:${position + 1}")
+                        adapter?.instantiateItem(viewPager, position + 1)
+                    }
+                }
+            }
+        })
 
-        showSingleTab("HOME", DEFAULT_URI)
-    }
+        Log.v(TAG, "onCreate")
 
-    override fun onBackPressed() {
-        if (drawer_layout.isDrawerOpen(GravityCompat.START)) {
-            drawer_layout.closeDrawer(GravityCompat.START)
-        }else{
-            if(currentFragment?.getWebView()?.canGoBack() ?: false) currentFragment?.getWebView()?.goBack()
+        if (savedInstanceState == null){
+            selectMenuItem(-1)
         }
     }
 
@@ -80,20 +74,70 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         DEFAULT_URI = jsonMenu.defaultUri
     }
 
-    fun setTabList(tabList:List<JsonMenuAdapter.TabItem>){
-        tabMenuList = tabList
-        pagerAdapter.notifyDataSetChanged()
+    fun makePagerAdapter():FragmentStatePagerAdapter {
+        return object : FragmentStatePagerAdapter(supportFragmentManager) {
+            override fun getItem(position: Int): Fragment {
+                val frag = WebViewFragment.newInstance(tabMenuList[position].uriStr)
+                if (activeFragment == null || position == viewPager.currentItem) {
+                    Log.v(TAG, "store activeFragment: $frag")
+                    activeFragment = frag
+                }
+                return frag
+            }
 
-        when(tabLayout.tabCount>1){
-            true -> tabLayout.visibility = View.VISIBLE
-            else -> tabLayout.visibility = View.GONE
+            override fun getPageTitle(position: Int): CharSequence? {
+                return tabMenuList[position].title
+            }
+
+            override fun getCount(): Int {
+                return tabMenuList.size
+            }
+
         }
     }
 
-    fun showSingleTab(title:String?="", url:String?=DEFAULT_URI){
+    override fun onSaveInstanceState(outState: Bundle?) {
+        super.onSaveInstanceState(outState)
+        outState?.putInt(PARAM_MENU_ITEM_ID, activeMenuItemId)
+        Log.v(TAG, "save $PARAM_MENU_ITEM_ID=$activeMenuItemId, tab=${viewPager.currentItem}")
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
+        super.onRestoreInstanceState(savedInstanceState)
+        activeMenuItemId = savedInstanceState?.getInt(PARAM_MENU_ITEM_ID) ?: -1
+        selectMenuItem(activeMenuItemId)
+        Log.v(TAG, "load menu_item_id=$activeMenuItemId, tab=${viewPager.currentItem}")
+    }
+
+    override fun onBackPressed() {
+        if (drawer_layout.isDrawerOpen(GravityCompat.START)) {
+            drawer_layout.closeDrawer(GravityCompat.START)
+        }else{
+            if(activeFragment?.getWebView()?.canGoBack() == true) activeFragment?.getWebView()?.goBack()
+        }
+    }
+
+    fun setTabList(tabList:List<JsonMenuAdapter.TabItem>){
+        Log.v(TAG, "setTabList items: ${tabList.size}")
+
+        tabMenuList = tabList
+        val pagerAdapter = makePagerAdapter()
+        viewPager.adapter = pagerAdapter
+        viewPager.offscreenPageLimit = 2
+        tabLayout.setupWithViewPager(viewPager)
+
+        if (pagerAdapter.count>1){
+            if (prefetch) pagerAdapter.instantiateItem(viewPager, 1)
+            tabLayout.visibility = View.VISIBLE
+        }else{
+            tabLayout.visibility = View.GONE
+        }
+    }
+
+    fun singleTabList(title:String?="", url:String?=DEFAULT_URI):List<JsonMenuAdapter.TabItem>{
         val tempList = ArrayList<JsonMenuAdapter.TabItem>()
         tempList.add( JsonMenuAdapter.TabItem(title ?: "", url ?: DEFAULT_URI ) )
-        setTabList( tempList )
+        return tempList
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -109,19 +153,36 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        val menuItem = jsonMenu.getById( item.itemId )
-
-        viewPager.setCurrentItem(0)
-        setTabList(menuItem?.tabs ?: emptyList())
-        loadUrl(menuItem?.uriStr)
-
+        selectMenuItem( item.itemId )
         drawer_layout.closeDrawer(GravityCompat.START)
         return true
     }
 
+    fun selectMenuItem(itemId:Int ){
+        val menuItem = jsonMenu.getById( itemId )
+        activeMenuItemId = itemId
+
+        viewPager.currentItem = 0
+        Log.v(TAG, "selectMenuItem: $itemId")
+        setToolbarTitle( menuItem?.title ?: DEFAULT_TITLE )
+
+        if (itemId==-1){
+            setTabList( singleTabList( "HOME", DEFAULT_URI ) )
+            loadUrl(DEFAULT_URI)
+        }else{
+            setTabList(menuItem?.tabs ?: singleTabList(menuItem?.title, menuItem?.uriStr))
+            if (menuItem?.tabs?.isEmpty() == true) setTabList( singleTabList(menuItem?.title, menuItem?.uriStr) )
+            loadUrl(menuItem?.uriStr)
+        }
+    }
+
+    fun setToolbarTitle(title:String){
+        toolbar.title = title
+    }
+
     fun loadUrl(url:String?=DEFAULT_URI){
         Log.v(TAG, "loadUrl: $url")
-        currentFragment?.getWebView()?.loadUrl(url ?: DEFAULT_URI)
+        activeFragment?.getWebView()?.loadUrl(url ?: DEFAULT_URI)
     }
 
     override fun onPageDownloadStarted() {
