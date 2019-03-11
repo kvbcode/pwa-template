@@ -15,10 +15,17 @@ import android.view.View
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.app_bar_main.*
 import kotlinx.android.synthetic.main.content_main.*
+import okhttp3.*
+import java.io.IOException
+import kotlin.collections.ArrayList
+
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener, WebViewFragment.OnPageDownloadListener {
     private val TAG = "PWA"
     private val PARAM_MENU_ITEM_ID = "menu_item_id"
+
+    private val URL_MENU_DATA = "https://kvbcode.github.io/data/menu_data.json"
+    private val httpClient = HttpClient.instance
 
     private lateinit var jsonMenu:JsonMenuAdapter
     private var tabMenuList:List<JsonMenuAdapter.TabItem> = emptyList()
@@ -39,9 +46,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         drawer_layout.addDrawerListener(toggle)
         toggle.syncState()
 
-        createNavigationMenu()
-        nav_view.setNavigationItemSelectedListener(this)
-
         viewPager.addOnPageChangeListener(object:ViewPager.SimpleOnPageChangeListener(){
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
@@ -59,16 +63,42 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         Log.v(TAG, "onCreate")
 
+        loadNavigationMenuAsync(httpClient, URL_MENU_DATA)
+
+        createNavigationMenu(null)
+        nav_view.setNavigationItemSelectedListener(this)
+
         if (savedInstanceState == null){
             selectMenuItem(-1)
         }
     }
 
-    fun createNavigationMenu(){
+    fun loadNavigationMenuAsync(okHttpClient:OkHttpClient, url:String){
+        val request = Request.Builder().url( url ).build()
+        okHttpClient.newCall(request).enqueue(object: Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d(TAG, "http error: ${e.message}")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (response.isSuccessful){
+                    val jsonStr = response.body()?.string()
+                    createNavigationMenu(jsonStr)
+                }
+            }
+        })
+    }
+
+    fun createNavigationMenu(jsonStr:String?){
         val menu = nav_view.menu
 
-        var jsonStr = resources.openRawResource(R.raw.menu_data).bufferedReader().readText()
-        jsonMenu = JsonMenuAdapter(jsonStr)
+        val jsonMenuData = if (jsonStr==null || jsonStr.isEmpty()){
+            resources.openRawResource(R.raw.menu_data).bufferedReader().readText()
+        }else{
+            jsonStr
+        }
+
+        jsonMenu = JsonMenuAdapter(jsonMenuData)
         jsonMenu.inflate(menu)
 
         DEFAULT_URI = jsonMenu.defaultUri
