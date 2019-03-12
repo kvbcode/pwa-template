@@ -5,7 +5,7 @@ import android.view.Menu
 import org.json.JSONException
 import org.json.JSONObject
 
-class JsonMenuAdapter( jsonData:String ){
+class JsonMenuAdapter( val jsonData:String ){
 
     private val TAG = "JsonMenuAdapter"
 

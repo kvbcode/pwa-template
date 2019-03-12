@@ -23,6 +23,8 @@ import kotlin.collections.ArrayList
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener, WebViewFragment.OnPageDownloadListener {
     private val TAG = "PWA"
     private val PARAM_MENU_ITEM_ID = "menu_item_id"
+    private val PARAM_MENU_TAB_INDEX = "menu_tab_index"
+    private val PARAM_MENU_DATA_JSON = "menu__data_json"
 
     private val URL_MENU_DATA = "https://kvbcode.github.io/data/menu_data.json"
     private val httpClient = HttpClient.instance
@@ -63,13 +65,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         Log.v(TAG, "onCreate")
 
-        loadNavigationMenuAsync(httpClient, URL_MENU_DATA)
-
-        createNavigationMenu(null)
         nav_view.setNavigationItemSelectedListener(this)
 
         if (savedInstanceState == null){
+            createNavigationMenu(null)
             selectMenuItem(-1)
+            loadNavigationMenuAsync(httpClient, URL_MENU_DATA)
         }
     }
 
@@ -129,13 +130,17 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     override fun onSaveInstanceState(outState: Bundle?) {
         super.onSaveInstanceState(outState)
         outState?.putInt(PARAM_MENU_ITEM_ID, activeMenuItemId)
+        outState?.putInt(PARAM_MENU_TAB_INDEX, viewPager.currentItem)
         Log.v(TAG, "save $PARAM_MENU_ITEM_ID=$activeMenuItemId, tab=${viewPager.currentItem}")
+        outState?.putString( PARAM_MENU_DATA_JSON, jsonMenu.jsonData )
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
         super.onRestoreInstanceState(savedInstanceState)
+        createNavigationMenu( savedInstanceState?.getString( PARAM_MENU_DATA_JSON ) )
         activeMenuItemId = savedInstanceState?.getInt(PARAM_MENU_ITEM_ID) ?: -1
         selectMenuItem(activeMenuItemId)
+        viewPager.currentItem = savedInstanceState?.getInt( PARAM_MENU_TAB_INDEX ) ?: 0
         Log.v(TAG, "load menu_item_id=$activeMenuItemId, tab=${viewPager.currentItem}")
     }
 
